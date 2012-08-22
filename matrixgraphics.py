@@ -39,8 +39,8 @@ def circle(x,y,size):
     if (x - size/2)**2 + (y - size/2)**2 <= (size/2)**2:
         return True
 
-def grid(x,y,size):
-    if x % 32 == 0 or y % 32 == 0:
+def grid(x,y,size, width=32):
+    if x % width == 31 or y % width == 31:
         return True
 
 ##################################
@@ -70,28 +70,32 @@ def noise(p=None, color=False):
 def mix(p1,p2):
     return ((p1[0]+p2[0])/2,(p1[1]+p2[1])/2,(p1[2]+p2[2])/2)
 
-def blurr(data):
+def blurrr(data,b=1):
     newdata = data
     s = len(data)
     for y in range(xsize):
         for x in range(ysize):
-            r = (data[x,y][0] + data[x-1,y][0] + data[(x+1)%s,y][0] + data[x,y-1][0] + data[x,(y+1)%s][0] + data[x-1,y-1][0] + data[x-1,(y+1)%s][0] + data[(x+1)%s,y-1][0] + data[(x+1)%s,(y+1)%s][0])/9
-            g = (data[x,y][1] + data[x-1,y][1] + data[(x+1)%s,y][1] + data[x,y-1][1] + data[x,(y+1)%s][1] + data[x-1,y-1][1] + data[x-1,(y+1)%s][1] + data[(x+1)%s,y-1][1] + data[(x+1)%s,(y+1)%s][1])/9
-            b = (data[x,y][2] + data[x-1,y][2] + data[(x+1)%s,y][2] + data[x,y-1][2] + data[x,(y+1)%s][2] + data[x-1,y-1][2] + data[x-1,(y+1)%s][2] + data[(x+1)%s,y-1][2] + data[(x+1)%s,(y+1)%s][2])/9
-            newdata[x,y] = (r, g, b)
-    
+            blur = [0,0,0]
+            for yy in range(y-b,y+b+1):
+                for xx in range(x-b,x+b+1):
+                    for rgb in range(3):
+                        blur[rgb] += data[xx%len(data),yy%len(data)][rgb]
+            for z in range(len(blur)):
+                blur[z] = (blur[z]/(2*b+1)**2)%256
+            newdata[x,y] = blur
+            
     return newdata
     
 def pattern1(size):
-    r = y + x / (size/255)**2
-    g = y / (size/255)
-    b = y / (size/255)
+    r = y + x / (size/256)**2
+    g = y / (size/256)
+    b = y / (size/256)
     return (r,g,b)
 
 def pattern2(size):
-    r = (y - x) % size / (size/255)
-    g = x * y / (size/255)**2
-    b = (size - y) / (size/255)
+    r = (y - x) % size / (size/256)
+    g = x * y / (size/256)**2
+    b = (size - y) / (size/256)
     return (r,g,b)
 
 ##################################
@@ -101,13 +105,10 @@ def pattern2(size):
 def paint1(x, y, size):
     pixel = pattern1(size)
     
-    if grid(x,y,size):
-        pixel = invert(pixel)
-    
     if triangle(x,y,size):
-        pixel = pattern1(size)
+        pixel = invert(pixel)
         
-    if circle(x,y,size):
+    if circle(x,y,size*2):
         pixel = invert(pixel)
     
     if bottomtriangle(x,y,size):
@@ -122,15 +123,18 @@ def paint2(x, y, size):
     return pixel
 
 if __name__ == '__main__':
-    xsize = 2048
-    ysize = 2048
+    xsize = 512
+    ysize = 512
     
     # Create a 1024x1024x3 array of 8 bit unsigned integers
     data = np.zeros( (xsize,ysize,3), dtype=np.uint8 )
     
     for y in range(xsize):
         for x in range(ysize):
-            data[x,y] = paint1(x,y, 1024)
+            data[x,y] = paint1(x,y, 256)
+            
+    data = blurrr(data)
     
     img = smp.toimage(data)       # Create a PIL image
+    img.save('data/output.bmp')
     img.show()                    # View in default viewer
